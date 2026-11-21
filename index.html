@@ -62,9 +62,22 @@ button{font:inherit;border:0;border-radius:12px;padding:12px 16px;cursor:pointer
 .wn{background:#fff3cd;color:#6b4e00;border-radius:8px;padding:8px 10px;font-size:13px;margin:6px 0}
 .mbt{display:flex;gap:8px;position:sticky;bottom:0;background:var(--card);padding:12px 0 14px;margin-top:8px}
 .mbt button{flex:1}.mbt .p{font-size:16px}
+.need{border-color:#e8620f!important;background:rgba(240,138,28,.14)!important}
+.pob{display:flex;flex-direction:column;gap:8px}
+.pob select{font-size:14px}
+#posum{font-size:13px;background:var(--t1);color:var(--tt);border-radius:10px;padding:8px 10px;line-height:1.45}
+#pom{font-size:13px;color:var(--mu);min-height:16px}
+#shb{background:#25D366;color:#fff;width:100%;font-weight:700;font-size:17px;margin-top:8px}
 </style></head><body><div class="w">
 <div class="hero"><img id="lg" alt="Hanuman"><div><div class="j">జై శ్రీ హనుమాన్ · Jai Shri Hanuman</div><h1>Hanuman Traders</h1><p>Rice Mill · Bill of Supply – fill the details and download the PDF</p></div></div>
 <div class="dv">🌾 🌾 🌾</div>
+
+<div class="c"><h2>Purchase Order (PO)</h2><div class="pob">
+<button class="o" id="pobtn" type="button">📄 Read new PO (PDF / photo)</button>
+<input type="file" id="pofile" accept="application/pdf,image/*" hidden>
+<select id="posel" disabled><option value="">— Pick a saved PO —</option></select>
+<div id="posum" hidden></div><div id="pom">Share a PO from WhatsApp to "Hanuman Bills", or tap Read new PO.</div>
+</div></div>
 
 <div class="c"><h2>Invoice</h2><div class="g">
 <div class="f"><label>Invoice No.</label><input id="inv"></div>
@@ -93,7 +106,7 @@ button{font:inherit;border:0;border-radius:12px;padding:12px 16px;cursor:pointer
 <div style="margin-top:14px"><div class="t" id="tot">Total: Rs. 0.00</div><div class="w2" id="wd"></div></div>
 </div>
 
-<div class="bar"><button class="o" id="nb" type="button" style="width:100%;margin-bottom:8px">🔄 New bill</button><button class="p" id="dl" type="button">📄 Download PDF</button>
+<div class="bar"><button class="o" id="nb" type="button" style="width:100%;margin-bottom:8px">🔄 New bill</button><button class="p" id="dl" type="button">📄 Download PDF</button><button id="shb" type="button" hidden>📤 Share PDF on WhatsApp</button>
 <div id="m"></div></div>
 <datalist id="pl"></datalist>
 <div id="pv" class="mo" hidden><div class="mb"><h2>Check the bill</h2><div class="sub">Look through everything once. Tap Edit to change, or Confirm to download.</div><div id="pvb"></div>
@@ -751,11 +764,98 @@ $('pc').onclick=async()=>{
     const inv=($('inv').value||'bill').replace(/[^\w-]+/g,'_');
     const fn='Bill_of_Supply_'+inv+'.pdf';
     const dls=window.claude&&await window.claude.use('downloads');
-    if(!dls){d.save(fn);remember();m.textContent='PDF downloaded.';await toDrive(d,fn);return}
+    if(!dls){d.save(fn);remember();offerShare(d,fn);m.textContent='PDF downloaded.';await toDrive(d,fn);return}
     const r=await dls.save({filename:fn,data:d.output('arraybuffer')});
     remember();
     m.textContent=r.status==='saved'?'PDF saved.':'Done.';
   }catch(e){m.textContent=e&&e.code==='declined'?'Download cancelled.':'Could not create the PDF: '+((e&&e.message)||'error')}
   finally{busy=false;pc.disabled=false;pc.textContent='✅ Confirm & Download';$('pv').hidden=true}
 };
+
+// ---- PO reading (AI) + saved POs + share ----
+const ST={'01':'JAMMU AND KASHMIR','02':'HIMACHAL PRADESH','03':'PUNJAB','04':'CHANDIGARH','05':'UTTARAKHAND','06':'HARYANA','07':'DELHI','08':'RAJASTHAN','09':'UTTAR PRADESH','10':'BIHAR','18':'ASSAM','19':'WEST BENGAL','20':'JHARKHAND','21':'ODISHA','22':'CHHATTISGARH','23':'MADHYA PRADESH','24':'GUJARAT','27':'MAHARASHTRA','29':'KARNATAKA','30':'GOA','32':'KERALA','33':'TAMIL NADU','34':'PUDUCHERRY','36':'TELANGANA','37':'ANDHRA PRADESH'};
+let POS=[],curPO=null,lastPdf=null;
+const poMsg=(t,er)=>{const e=$('pom');e.textContent=t;e.style.color=er?'#c0392b':''};
+async function api(body){
+  const r=await fetch(DRIVE_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(Object.assign({key:DRIVE_KEY},body))});
+  const j=await r.json();if(!j.ok)throw new Error(j.error||'failed');return j;
+}
+function fillPOs(){
+  const s=$('posel');s.innerHTML='<option value="">— Pick a saved PO —</option>';
+  POS.forEach((p,i)=>{const o=document.createElement('option');o.value=i;
+    o.textContent=[p.po_no,p.buyer_name,p.product,p.rate_per_qtl?'Rs.'+p.rate_per_qtl:''].filter(Boolean).join(' · ');s.appendChild(o)});
+  s.disabled=!POS.length;
+}
+async function loadPOs(){
+  try{const r=await fetch(DRIVE_URL+'?action=pos&key='+encodeURIComponent(DRIVE_KEY));const j=await r.json();if(j.ok){POS=j.pos||[];fillPOs()}}catch(e){}
+}
+function stateOf(g,s){const c=String(g||'').slice(0,2);return ST[c]||String(s||'').toUpperCase()}
+function applyPO(p){
+  curPO=p;
+  const P=loadP(),find=n=>P.find(x=>x.n.toLowerCase()===String(n||'').trim().toLowerCase());
+  const set=(id,v)=>{$(id).value=v||'';$(id).classList.remove('bad')};
+  const b=find(p.buyer_name);
+  set('bn',p.buyer_name);set('ba',b?b.a:p.buyer_location);set('bs',(b&&b.s)||stateOf(p.buyer_gstin,p.buyer_state));set('bg',p.buyer_gstin||(b&&b.g));
+  const c=find(p.consignee_name);
+  set('cn',p.consignee_name);set('ca',c?c.a:p.consignee_location);set('cs',(c&&c.s)||stateOf(p.consignee_gstin,p.consignee_state));set('cg2',p.consignee_gstin||(c&&c.g));
+  const box=$('items');while(box.children.length>1)box.lastChild.remove();$('add').hidden=false;
+  const it=box.firstElementChild;
+  it.querySelector('.ds').value=(p.product||'').toUpperCase();
+  it.querySelector('.rt').value=p.rate_per_qtl||'';
+  it.querySelector('.qt').value='';it.querySelector('.bg').value='';
+  calc();
+  ['vn'].map($).concat([it.querySelector('.bg'),it.querySelector('.qt')]).forEach(e=>{e.value='';e.classList.add('need')});
+  $('posum').innerHTML='<b>PO '+esc(p.po_no||'')+'</b>'+(p.po_date?' · '+esc(p.po_date.split('-').reverse().join('-')):'')+
+    (p.qty_tons?' · Total '+esc(p.qty_tons)+' tons':'')+(p.payment_terms?' · Payment: '+esc(p.payment_terms):'')+
+    (p.consignee_contact?'<br>Unloading contact: '+esc(p.consignee_contact):'');
+  $('posum').hidden=false;
+  poMsg('Filled from PO. Now type Vehicle No., Bags and Qty for this lorry.');
+  $('vn').scrollIntoView({block:'center',behavior:'smooth'});
+}
+function toB64(blob){return new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(',')[1]);r.onerror=no;r.readAsDataURL(blob)})}
+async function shrink(file){
+  if(!/^image\//.test(file.type))return file;
+  const img=await createImageBitmap(file);const k=Math.min(1,1800/Math.max(img.width,img.height));
+  const c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);
+  c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+  return await new Promise(ok=>c.toBlob(ok,'image/jpeg',0.85));
+}
+async function readPOFile(file){
+  if(!file)return;
+  if(!/pdf|image/.test(file.type||'')&&!/\.pdf$/i.test(file.name||'')){poMsg('Please choose the PO as a PDF or photo.',true);return}
+  const btn=$('pobtn');btn.disabled=true;btn.textContent='⏳ Reading PO…';poMsg('Reading the PO with AI, takes about 10–20 seconds…');
+  try{
+    const f=await shrink(file);
+    const j=await api({action:'po',mime:f.type||'application/pdf',data:await toB64(f)});
+    applyPO(j.po);loadPOs();
+  }catch(e){poMsg('Could not read the PO: '+(e.message||e)+'. Check internet and try again.',true)}
+  finally{btn.disabled=false;btn.textContent='📄 Read new PO (PDF / photo)'}
+}
+$('pobtn').onclick=()=>$('pofile').click();
+$('pofile').onchange=e=>{readPOFile(e.target.files[0]);e.target.value=''};
+$('posel').onchange=e=>{const p=POS[+e.target.value];if(p)applyPO(p)};
+document.addEventListener('input',e=>{if(e.target.classList&&e.target.value)e.target.classList.remove('need')});
+loadPOs();
+
+// PO shared from WhatsApp (installed app share target)
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
+(async()=>{
+  if(!/[?&]shared=1/.test(location.search))return;
+  history.replaceState(null,'',location.pathname);
+  try{const c=await caches.open('shared-po');const r=await c.match('po');if(!r)return;
+    const blob=await r.blob();const name=decodeURIComponent(r.headers.get('x-name')||'po');await c.delete('po');
+    readPOFile(new File([blob],name,{type:blob.type||'application/pdf'}));
+  }catch(e){}
+})();
+
+// Share the bill PDF on WhatsApp
+$('shb').onclick=async()=>{
+  if(!lastPdf)return;
+  const f=new File([lastPdf.blob],lastPdf.name,{type:'application/pdf'});
+  try{await navigator.share({files:[f],title:lastPdf.name})}catch(e){if(e&&e.name!=='AbortError')$('m').textContent='Could not open sharing: '+e.message}
+};
+function offerShare(d,fn){
+  try{const blob=d.output('blob');const f=new File([blob],fn,{type:'application/pdf'});
+    if(navigator.canShare&&navigator.canShare({files:[f]})){lastPdf={blob,name:fn};$('shb').hidden=false}}catch(e){}
+}
 </script></body></html>
