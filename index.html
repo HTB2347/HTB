@@ -823,7 +823,7 @@ async function shrink(file){
 async function readPOFile(file){
   if(!file)return;
   if(!/pdf|image/.test(file.type||'')&&!/\.pdf$/i.test(file.name||'')){poMsg('Please choose the PO as a PDF or photo.',true);return}
-  const btn=$('pobtn');btn.disabled=true;btn.textContent='⏳ Reading PO…';poMsg('Reading the PO with AI, takes about 10–20 seconds…');
+  const btn=$('pobtn');btn.disabled=true;btn.textContent='⏳ Reading PO…';poMsg('Reading the PO, takes about 5–10 seconds…');
   try{
     const f=await shrink(file);
     const j=await api({action:'po',mime:f.type||'application/pdf',data:await toB64(f)});
