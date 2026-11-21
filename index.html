@@ -1,4 +1,3 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -39,6 +38,24 @@ button{font:inherit;border:0;border-radius:12px;padding:12px 16px;cursor:pointer
 #m{font-size:13px;color:var(--mu);text-align:center;margin-top:8px;min-height:18px}
 .ft{text-align:center;color:var(--mu);font-size:12px;padding:6px 0 18px}.ft b{color:var(--g);font-size:14px}
 #vn,#bs,#cs,#bg,#cg2{text-transform:uppercase}
+.bad{border-color:#c0392b!important;background:rgba(192,57,43,.12)!important}
+#m.er{color:#c0392b;font-weight:600}
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;z-index:50;padding:10px}
+.mo[hidden]{display:none!important}
+.mb{background:var(--card);color:var(--tx);border-radius:16px;max-width:720px;width:100%;max-height:92vh;overflow:auto;padding:16px 16px 0}
+.mb h2{margin:0 0 4px;color:var(--g);font-size:19px}
+.mb .sub{font-size:13px;color:var(--mu);margin-bottom:10px}
+.ps{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px;margin:8px 0}
+.ps>div{border:1px solid var(--bd);border-radius:10px;padding:8px}
+.ps b{color:var(--g);display:block;font-size:12px;margin-bottom:2px}
+.pt{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0}
+.pt th,.pt td{border:1px solid var(--bd);padding:6px 5px;text-align:left}
+.pt th{background:var(--t1);color:var(--tt);font-size:12px}
+.pt .n{text-align:right;white-space:nowrap}
+.pt tfoot td{font-weight:700}
+.wn{background:#fff3cd;color:#6b4e00;border-radius:8px;padding:8px 10px;font-size:13px;margin:6px 0}
+.mbt{display:flex;gap:8px;position:sticky;bottom:0;background:var(--card);padding:12px 0 14px;margin-top:8px}
+.mbt button{flex:1}.mbt .p{font-size:16px}
 </style></head><body><div class="w">
 <div class="hero"><img id="lg" alt="Hanuman"><div><div class="j">జై శ్రీ హనుమాన్ · Jai Shri Hanuman</div><h1>Hanuman Traders</h1><p>Rice Mill · Bill of Supply – fill the details and download the PDF</p></div></div>
 <div class="dv">🌾 🌾 🌾</div>
@@ -51,7 +68,7 @@ button{font:inherit;border:0;border-radius:12px;padding:12px 16px;cursor:pointer
 </div></div>
 
 <div class="c"><h2>Receiver (Billed to)</h2><div class="g">
-<div class="f s"><label>Name</label><input id="bn"></div>
+<div class="f s"><label>Name</label><input id="bn" list="pl" autocomplete="off" placeholder="Type to pick a saved party"></div>
 <div class="f s"><label>Address</label><textarea id="ba"></textarea></div>
 <div class="f s"><label>State</label><input id="bs"></div>
 <div class="f s"><label>GSTIN / UID</label><input id="bg"></div>
@@ -59,7 +76,7 @@ button{font:inherit;border:0;border-radius:12px;padding:12px 16px;cursor:pointer
 
 <div class="c"><h2>Consignee (Shipped to)</h2>
 <div class="g" id="cg">
-<div class="f s"><label>Name</label><input id="cn"></div>
+<div class="f s"><label>Name</label><input id="cn" list="pl" autocomplete="off" placeholder="Type to pick a saved party"></div>
 <div class="f s"><label>Address</label><textarea id="ca"></textarea></div>
 <div class="f s"><label>State</label><input id="cs"></div>
 <div class="f s"><label>GSTIN / UID</label><input id="cg2"></div>
@@ -72,6 +89,9 @@ button{font:inherit;border:0;border-radius:12px;padding:12px 16px;cursor:pointer
 
 <div class="bar"><button class="o" id="nb" type="button" style="width:100%;margin-bottom:8px">🔄 New bill</button><button class="p" id="dl" type="button">📄 Download PDF</button>
 <div id="m"></div></div>
+<datalist id="pl"></datalist>
+<div id="pv" class="mo" hidden><div class="mb"><h2>Check the bill</h2><div class="sub">Look through everything once. Tap Edit to change, or Confirm to download.</div><div id="pvb"></div>
+<div class="mbt"><button class="o" id="pe" type="button">✏️ Edit</button><button class="p" id="pc" type="button">✅ Confirm &amp; Download</button></div></div></div>
 <div class="ft"><b>|| జై శ్రీ హనుమాన్ ||</b><br>Hanuman Traders · V.M. Banjar, Khammam</div>
 </div>
 
@@ -624,19 +644,112 @@ function build(){
   d.setFont('helvetica','italic');d.setFontSize(8);T('This is a computer generated invoice. No signature required.',135,275.5,{align:'center'});d.setFont('helvetica','normal');d.setFontSize(9);T('Authorized Signatory',135,280,{align:'center'});T('Common Seal',45,280,{align:'center'});
   return d;
 }
-$('dl').onclick=async()=>{
-  const m=$('m');m.textContent='';
+// ---- Saved parties (remembered on this phone / computer) ----
+const PK='ht_parties_v1';
+const BLK={b:['bn','ba','bs','bg'],c:['cn','ca','cs','cg2']};
+function loadP(){try{const v=JSON.parse(localStorage.getItem(PK)||'[]');return Array.isArray(v)?v:[]}catch(e){return []}}
+function saveP(L){try{localStorage.setItem(PK,JSON.stringify(L.slice(0,500)))}catch(e){}}
+function fillDL(){
+  const dl=$('pl');dl.innerHTML='';
+  loadP().forEach(p=>{const o=document.createElement('option');o.value=p.n;o.label=[p.a.split('\n')[0],p.s].filter(Boolean).join(', ');dl.appendChild(o)});
+}
+function pick(k){
+  const f=BLK[k],n=$(f[0]).value.trim().toLowerCase();
+  if(!n)return;
+  const p=loadP().find(x=>x.n.toLowerCase()===n);
+  if(!p)return;
+  $(f[1]).value=p.a;$(f[2]).value=p.s;$(f[3]).value=p.g;
+  [f[1],f[2],f[3]].forEach(id=>$(id).classList.remove('bad'));
+  const m=$('m');m.classList.remove('er');m.textContent='Filled saved details for '+p.n+'.';
+}
+$('bn').addEventListener('input',()=>pick('b'));
+$('cn').addEventListener('input',()=>pick('c'));
+function remember(){
+  let L=loadP();
+  [BLK.c,BLK.b].forEach(f=>{
+    const p={n:$(f[0]).value.trim(),a:$(f[1]).value.trim(),s:$(f[2]).value.trim().toUpperCase(),g:$(f[3]).value.trim().toUpperCase()};
+    if(!p.n)return;
+    L=L.filter(x=>x.n.toLowerCase()!==p.n.toLowerCase());
+    L.unshift(p);
+  });
+  saveP(L);fillDL();
+}
+fillDL();
+
+// ---- Check before download ----
+document.addEventListener('input',e=>{if(e.target.classList)e.target.classList.remove('bad')});
+function check(){
+  document.querySelectorAll('.bad').forEach(e=>e.classList.remove('bad'));
+  const errs=[],bad=e=>e.classList.add('bad');
+  if(!$('dt').value){errs.push('Date is missing');bad($('dt'))}
+  if(!$('bn').value.trim()){errs.push('Receiver name is missing');bad($('bn'))}
+  const R=rows();let any=false;
+  R.forEach((x,i)=>{
+    if(!(x.ds||x.qs||x.rs||x.bg))return;
+    any=true;const k='Item '+(i+1)+': ';
+    if(!x.ds){errs.push(k+'description missing');bad(x.el.querySelector('.ds'))}
+    if(!(x.q>0)){errs.push(k+'quantity missing');bad(x.el.querySelector('.qt'))}
+    if(!(x.r>0)){errs.push(k+'rate missing');bad(x.el.querySelector('.rt'))}
+  });
+  if(!any&&R[0]){errs.push('Add at least one item');bad(R[0].el.querySelector('.ds'))}
+  return errs;
+}
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function showPv(){
+  const {R,t,tq,tb}=calc();
+  const w=[];
+  if(!$('vn').value.trim())w.push('Vehicle No. is empty.');
+  if(!$('cn').value.trim())w.push('Consignee (Shipped to) is empty.');
+  [['bg','Receiver'],['cg2','Consignee']].forEach(([id,l])=>{
+    const v=$(id).value.trim();
+    if(v&&!/^[0-9A-Z]{15}$/i.test(v)&&!/^\d{12}$/.test(v))w.push(l+' GSTIN / UID looks wrong ('+v.length+' characters, GSTIN should be 15).');
+  });
+  const party=(t,f)=>'<div><b>'+t+'</b>'+(esc($(f[0]).value.trim())||'—')+
+    ($(f[1]).value.trim()?'<br>'+esc($(f[1]).value.trim()).replace(/\n/g,'<br>'):'')+
+    ($(f[2]).value.trim()?'<br>'+esc($(f[2]).value.trim().toUpperCase()):'')+
+    ($(f[3]).value.trim()?'<br>GSTIN/UID: '+esc($(f[3]).value.trim().toUpperCase()):'')+'</div>';
+  const dv=$('dt').value.split('-').reverse().join('-');
+  let rowsH='';
+  R.forEach((x,i)=>{if(!(x.ds||x.q||x.r))return;
+    rowsH+='<tr><td>'+(i+1)+'</td><td>'+esc(x.ds)+'</td><td class="n">'+esc(x.bg)+'</td><td class="n">'+x.q+'</td><td class="n">'+fmt(x.r)+'</td><td class="n">'+fmt(x.v)+'</td></tr>'});
+  $('pvb').innerHTML=
+    w.map(s=>'<div class="wn">⚠️ '+esc(s)+'</div>').join('')+
+    '<div class="ps"><div><b>Invoice No.</b>'+(esc($('inv').value.trim())||'Given automatically on confirm')+'</div><div><b>Date · Vehicle</b>'+esc(dv)+' · '+(esc($('vn').value.trim().toUpperCase())||'—')+'</div>'+
+    party('Billed to',BLK.b)+party('Shipped to',BLK.c)+'</div>'+
+    '<table class="pt"><thead><tr><th>No.</th><th>Goods</th><th class="n">Bags</th><th class="n">Qtl</th><th class="n">Rate</th><th class="n">Value Rs.</th></tr></thead><tbody>'+rowsH+
+    '</tbody><tfoot><tr><td></td><td>Total</td><td class="n">'+(tb||'')+'</td><td class="n">'+(Math.round(tq*1000)/1000)+'</td><td></td><td class="n">'+fmt(t)+'</td></tr></tfoot></table>'+
+    '<div class="t">Rs. '+fmt(t)+'</div><div class="w2">'+esc(words(t))+'</div>';
+  $('pv').hidden=false;$('pv').querySelector('.mb').scrollTop=0;
+}
+$('dl').onclick=()=>{
+  const m=$('m');m.textContent='';m.classList.remove('er');
+  const errs=check();
+  if(errs.length){
+    m.classList.add('er');m.textContent='Please fix: '+errs.join(' · ');
+    const f=document.querySelector('.bad');if(f){f.scrollIntoView({block:'center',behavior:'smooth'});setTimeout(()=>f.focus(),300)}
+    return;
+  }
+  showPv();
+};
+$('pe').onclick=()=>{$('pv').hidden=true};
+$('pv').addEventListener('click',e=>{if(e.target===$('pv'))$('pv').hidden=true});
+let busy=false;
+$('pc').onclick=async()=>{
+  if(busy)return;busy=true;
+  const pc=$('pc');pc.disabled=true;pc.textContent='⏳ Please wait…';
+  const m=$('m');m.textContent='';m.classList.remove('er');
   try{
     if(!window.jspdf){m.textContent='PDF library did not load. Check your connection and reload.';return}
     if(!await ensureNo())return;
     const d=build();
-    const dls=window.claude&&await window.claude.use('downloads');
-    if(!dls){const fn='Bill_of_Supply_'+($('inv').value||'bill').replace(/[^\w-]+/g,'_')+'.pdf';d.save(fn);m.textContent='PDF downloaded.';await toDrive(d,fn);return}
     const inv=($('inv').value||'bill').replace(/[^\w-]+/g,'_');
-    const r=await dls.save({filename:'Bill_of_Supply_'+inv+'.pdf',data:d.output('arraybuffer')});
+    const fn='Bill_of_Supply_'+inv+'.pdf';
+    const dls=window.claude&&await window.claude.use('downloads');
+    if(!dls){d.save(fn);remember();m.textContent='PDF downloaded.';await toDrive(d,fn);return}
+    const r=await dls.save({filename:fn,data:d.output('arraybuffer')});
+    remember();
     m.textContent=r.status==='saved'?'PDF saved.':'Done.';
   }catch(e){m.textContent=e&&e.code==='declined'?'Download cancelled.':'Could not create the PDF: '+((e&&e.message)||'error')}
+  finally{busy=false;pc.disabled=false;pc.textContent='✅ Confirm & Download';$('pv').hidden=true}
 };
 </script></body></html>
-
-</body></html>
