@@ -93,7 +93,7 @@ button{font:inherit;border:0;border-radius:12px;padding:12px 16px;cursor:pointer
 <div style="margin-top:14px"><div class="t" id="tot">Total: Rs. 0.00</div><div class="w2" id="wd"></div></div>
 </div>
 
-<div class="bar"><button class="o" id="nb" type="button" style="width:100%;margin-bottom:8px">🔄 New bill</button><button class="p" id="dl" type="button">📄 Download PDF</button>
+<div class="bar"><button class="p" id="dl" type="button">📄 Download PDF</button>
 <div id="m"></div><button class="o" id="rd" type="button" hidden style="width:100%;margin-top:6px">🔁 Retry saving to Drive</button></div>
 <datalist id="pl"></datalist>
 <div id="pv" class="mo" hidden><div class="mb"><h2>Check the bill</h2><div class="sub">Look through everything once. Tap Edit to change, or Confirm to download.</div><div id="pvb"></div>
@@ -590,7 +590,6 @@ $('dt').value=today();
 addItem();calc();peekNo();$('dt').addEventListener('change',peekNo);
 $('lg').src=LOGO;$('vn').placeholder='TS 04 AB 1234';
 if(DRIVE_URL){$('inv').readOnly=true;$('inv').placeholder='Auto number on download'}else $('inv').placeholder='e.g. 101';
-$('nb').onclick=()=>location.reload();
 
 // Fit text into width (mm): try smaller font sizes, then up to maxLines lines. cut=true if it still doesn't fit.
 function fitLines(d,text,w,big,small,maxLines){
