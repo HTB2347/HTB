@@ -635,8 +635,24 @@ $('dt').value=today();
 addItem();calc();peekNo();$('dt').addEventListener('change',peekNo);
 if(loadPending().length){$('m').textContent='A bill from earlier is not saved to Google Drive yet.';showRetry()}
 $('lg').src=LOGO;$('vn').placeholder='TS 04 AB 1234';
-// Add the spaces in the Vehicle No. box as it is typed; tidy it fully when leaving the box.
-$('vn').addEventListener('input',()=>{const el=$('vn');const c=el.value.toUpperCase().replace(/[^A-Z0-9]/g,'');if(/^[A-Z]{2}\d{2}[A-Z]{0,3}\d{1,4}$/.test(c)){const f=fmtVeh(c);if(f!==el.value)el.value=f}});
+// Vehicle No. box: spaces appear as the user types (TS → "TS ", TS04 → "TS 04 ", TS 04 AB → "TS 04 AB " once a digit follows).
+function fmtLive(raw){
+  const c=String(raw||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  let i=0,st='',rto='',ser='',num='';
+  while(i<c.length&&st.length<2&&/[A-Z]/.test(c[i]))st+=c[i++];
+  while(i<c.length&&rto.length<2&&/\d/.test(c[i]))rto+=c[i++];
+  while(i<c.length&&ser.length<3&&/[A-Z]/.test(c[i]))ser+=c[i++];
+  while(i<c.length&&num.length<4&&/\d/.test(c[i]))num+=c[i++];
+  const parts=[st,rto,ser,num].filter(Boolean);
+  let out=parts.join(' ');
+  if(!rto&&st.length===2)out+=' ';          // state complete: space ready for RTO code
+  if(rto.length===2&&!ser&&!num)out+=' ';   // RTO complete: space ready for series/number
+  return out;
+}
+$('vn').addEventListener('input',e=>{
+  if(e.inputType&&e.inputType.startsWith('delete'))return; // let Backspace remove the auto space
+  const el=$('vn');const f=fmtLive(el.value);if(f!==el.value)el.value=f;
+});
 $('vn').addEventListener('blur',()=>{$('vn').value=fmtVeh($('vn').value)});
 if(DRIVE_URL){$('inv').readOnly=true;$('inv').placeholder='Auto number on download'}else $('inv').placeholder='e.g. 101';
 
