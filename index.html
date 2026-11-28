@@ -510,7 +510,7 @@ let lastIssued='';
 async function peekNo(){
   if(!DRIVE_URL||$('inv').value.trim())return;
   try{const r=await fetch(DRIVE_URL+'?action=peek&key='+encodeURIComponent(DRIVE_KEY)+'&date='+encodeURIComponent($('dt').value));
-    const t=(await r.text()).trim();if(/^[A-Z0-9-]+\/[A-Z0-9-]+\/[0-9]+$/.test(t))$('inv').placeholder='Next: '+t;}catch(e){}
+    const t=(await r.text()).trim();if(/^[A-Z0-9-]+\/[A-Z0-9-]+\/[0-9]+$/.test(t))$('inv').placeholder=t;}catch(e){}
 }
 async function ensureNo(){
   if(!DRIVE_URL||$('inv').value.trim())return true;
