@@ -567,6 +567,13 @@ async function toDrive(d,fn){
   showRetry();return false;
 }
 // Clear the bill so the next one starts fresh. Saved parties are kept.
+// Vehicle no. in the standard layout: state, RTO code, series, number (e.g. TS04 ET 6677). Falls back to the typed text.
+function fmtVeh(v){
+  const c=String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  const m=c.match(/^([A-Z]{2})(\d{1,2})([A-Z]{0,3})(\d{1,4})$/);
+  if(!m)return String(v||'').trim().toUpperCase();
+  return [m[1]+m[2].padStart(2,'0'),m[3],m[4]].filter(Boolean).join(' ');
+}
 function resetForm(){
   $('inv').value='';$('vn').value='';
   $('items').innerHTML='';addItem();calc();
@@ -679,7 +686,7 @@ function build(){
   dk();d.setFont('helvetica','bold');
   T($('inv').value,42,64);
   const dv=$('dt').value;T(dv?dv.split('-').reverse().join('-'):'',42,71);
-  T($('mt').value,142,64);T($('vn').value.toUpperCase(),134,71);gr();
+  T($('mt').value,142,64);T(fmtVeh($('vn').value),134,71);gr();
   L(X0,74,X1,74);L(105,58,105,112);
   d.setFont('helvetica','normal');d.setFontSize(9.5);
   T('Details of Receiver (Billed to)',59,79.5,{align:'center'});T('Consignee (Shipped to)',150,79.5,{align:'center'});
@@ -800,7 +807,7 @@ function showPv(){
   $('pvb').innerHTML=
     (reuse?'<div class="wn" style="background:#fde2dd;color:#8a1f11"><b>⚠️ Invoice No. '+esc(lastIssued)+' was already used for the bill you just made.</b><br>A new bill will get a NEW number. Only tick this if you are correcting that same bill:<br><label style="color:inherit;font-size:13px"><input type="checkbox" id="keepno" style="width:auto;margin:6px 6px 0 0">Correction – keep the same number</label></div>':'')+
     w.map(s=>'<div class="wn">⚠️ '+esc(s)+'</div>').join('')+
-    '<div class="ps"><div><b>Invoice No.</b>'+(esc($('inv').value.trim())||'Given automatically on confirm')+'</div><div><b>Date · Vehicle</b>'+esc(dv)+' · '+(esc($('vn').value.trim().toUpperCase())||'—')+'</div>'+
+    '<div class="ps"><div><b>Invoice No.</b>'+(esc($('inv').value.trim())||'Given automatically on confirm')+'</div><div><b>Date · Vehicle</b>'+esc(dv)+' · '+(esc(fmtVeh($('vn').value))||'—')+'</div>'+
     party('Billed to',BLK.b)+party('Shipped to',BLK.c)+'</div>'+
     '<table class="pt"><thead><tr><th>No.</th><th>Goods</th><th class="n">Bags</th><th class="n">Qtl</th><th class="n">Rate</th><th class="n">Value Rs.</th></tr></thead><tbody>'+rowsH+
     '</tbody><tfoot><tr><td></td><td>Total</td><td class="n">'+(tb||'')+'</td><td class="n">'+(Math.round(tq*1000)/1000)+'</td><td></td><td class="n">'+fmt(t)+'</td></tr></tfoot></table>'+
