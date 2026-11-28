@@ -636,7 +636,7 @@ addItem();calc();peekNo();$('dt').addEventListener('change',peekNo);
 if(loadPending().length){$('m').textContent='A bill from earlier is not saved to Google Drive yet.';showRetry()}
 $('lg').src=LOGO;$('vn').placeholder='TS 04 AB 1234';
 // Add the spaces in the Vehicle No. box as it is typed; tidy it fully when leaving the box.
-$('vn').addEventListener('input',()=>{const el=$('vn');const c=el.value.toUpperCase().replace(/[^A-Z0-9]/g,'');if(/^[A-Z]{2}\d{1,2}[A-Z]{0,3}\d{1,4}$/.test(c)){const f=fmtVeh(c);if(f!==el.value)el.value=f}});
+$('vn').addEventListener('input',()=>{const el=$('vn');const c=el.value.toUpperCase().replace(/[^A-Z0-9]/g,'');if(/^[A-Z]{2}\d{2}[A-Z]{0,3}\d{1,4}$/.test(c)){const f=fmtVeh(c);if(f!==el.value)el.value=f}});
 $('vn').addEventListener('blur',()=>{$('vn').value=fmtVeh($('vn').value)});
 if(DRIVE_URL){$('inv').readOnly=true;$('inv').placeholder='Auto number on download'}else $('inv').placeholder='e.g. 101';
 
