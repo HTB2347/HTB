@@ -561,11 +561,11 @@ async function toDrive(d,fn){
   const m=$('m');
   const b64=d.output('datauristring').split(',')[1];
   savePending(loadPending().concat([{fn,b64}]));
-  m.textContent='PDF downloaded. Saving a copy to Google Drive…';
+  m.textContent='⏳ Saving the bill to Google Drive…';
   if(await uploadPending()){
-    m.textContent='✅ PDF downloaded and saved to Google Drive.';$('rd').hidden=true;return true;
+    m.textContent='✅ Saved to Google Drive.';$('rd').hidden=true;return true;
   }
-  m.textContent='⚠️ PDF downloaded, but NOT saved to Google Drive. Check the internet and tap Retry.';
+  m.textContent='⚠️ PDF made, but NOT saved to Google Drive. Check the internet and tap Retry.';
   showRetry();return false;
 }
 // Clear the bill so the next one starts fresh. Saved parties are kept.
@@ -841,7 +841,8 @@ $('dl').onclick=()=>{
   if(busy){m.textContent='⏳ Please wait, the bill is still being saved…';return}
   // Bill already finished and the form was cleared: tell the user instead of showing errors.
   if(lastIssued&&!$('inv').value.trim()&&!rows().some(x=>x.ds||x.qs||x.rs||x.bg)){
-    m.textContent='✅ Bill '+lastIssued+' is already done and saved. For the next lorry, fill in the new details.';return;
+    if(lastPdf)lastPdf.d.save(lastPdf.fn);
+    m.textContent='✅ Bill '+lastIssued+' is already done and saved. Opened it again (no new number). For the next lorry, fill in the new details.';return;
   }
   // Same bill, nothing changed: download it again with the same number. No new number, no new Drive copy.
   if(lastIssued&&lastPdf&&$('inv').value.trim()===lastIssued&&snap()===lastSnap){
@@ -875,7 +876,14 @@ $('pc').onclick=async()=>{
     const fn='Bill_of_Supply_'+inv+'.pdf';
     const dls=window.claude&&await window.claude.use('downloads');
     lastIssued=$('inv').value.trim();lastSnap=snap();lastPdf={d,fn};
-    if(!dls){d.save(fn);remember();m.textContent='PDF downloaded.';if(await toDrive(d,fn))resetForm();return}
+    // Save to Drive FIRST, then open the PDF. On iPhone, opening the PDF pauses this page and would cut off the upload.
+    if(!dls){
+      remember();
+      const ok=await toDrive(d,fn);
+      d.save(fn);
+      if(ok){m.textContent='✅ Bill '+lastIssued+' saved to Google Drive. PDF opened. If it did not open, tap Download PDF again (same bill, no new number).';resetForm();}
+      return;
+    }
     const r=await dls.save({filename:fn,data:d.output('arraybuffer')});
     remember();
     m.textContent=r.status==='saved'?'PDF saved.':'Done.';
