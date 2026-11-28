@@ -514,27 +514,65 @@ async function peekNo(){
 }
 async function ensureNo(){
   if(!DRIVE_URL||$('inv').value.trim())return true;
+  const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),20000);
   try{
-    const r=await fetch(DRIVE_URL+'?action=next&key='+encodeURIComponent(DRIVE_KEY)+'&date='+encodeURIComponent($('dt').value));
+    $('m').textContent='Getting the invoice number…';
+    const r=await fetch(DRIVE_URL+'?action=next&key='+encodeURIComponent(DRIVE_KEY)+'&date='+encodeURIComponent($('dt').value),{signal:ctl.signal});
     const t=(await r.text()).trim();
     if(!/^[A-Z0-9-]+\/[A-Z0-9-]+\/[0-9]+$/.test(t)||t.length>16)throw 0;
-    $('inv').value=t;return true;
+    $('inv').value=t;$('m').textContent='';return true;
   }catch(e){$('m').textContent='Could not get the invoice number. Check the internet and try again.';return false}
+  finally{clearTimeout(to)}
 }
-async function toDrive(d,fn){
-  if(!DRIVE_URL)return;
-  const m=$('m');
-  try{
-    const b64=d.output('datauristring').split(',')[1];
-    m.textContent='PDF downloaded. Saving a copy to Google Drive…';
-    const r=await fetch(DRIVE_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({key:DRIVE_KEY,name:fn,data:b64})});
-    const t=(await r.text()).trim();
-    if(t!=='ok')throw new Error(t);
-    m.textContent='✅ PDF downloaded and saved to Google Drive.';$('rd').hidden=true;
-  }catch(e){
-    m.textContent='⚠️ PDF downloaded, but NOT saved to Google Drive. Check the internet and tap Retry.';
-    const b=$('rd');b.hidden=false;b.onclick=()=>{b.hidden=true;toDrive(d,fn)};
+const PENDING='ht_pending_v1';
+function showRetry(){
+  const b=$('rd');
+  b.hidden=false;
+  b.onclick=async()=>{
+    b.disabled=true;
+    const ok=await uploadPending();
+    b.disabled=false;
+    if(ok){b.hidden=true;$('m').textContent='✅ Saved to Google Drive.'}
+    else $('m').textContent='⚠️ Still not saved to Google Drive. Check the internet and tap Retry.';
+  };
+}
+function loadPending(){try{const v=JSON.parse(localStorage.getItem(PENDING)||'[]');return Array.isArray(v)?v:[]}catch(e){return []}}
+function savePending(L){try{if(L.length)localStorage.setItem(PENDING,JSON.stringify(L));else localStorage.removeItem(PENDING)}catch(e){}}
+// Uploads every waiting PDF. Returns true only when none are left.
+async function uploadPending(){
+  if(!DRIVE_URL)return true;
+  let L=loadPending();
+  while(L.length){
+    const p=L[0];
+    try{
+      const r=await fetch(DRIVE_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({key:DRIVE_KEY,name:p.fn,data:p.b64})});
+      const t=(await r.text()).trim();
+      if(t!=='ok')throw new Error(t);
+    }catch(e){savePending(L);return false}
+    L=L.slice(1);savePending(L);
   }
+  return true;
+}
+// Returns true when the PDF is in Drive. On failure the PDF is kept so Retry still works after a reload.
+async function toDrive(d,fn){
+  if(!DRIVE_URL)return true;
+  const m=$('m');
+  const b64=d.output('datauristring').split(',')[1];
+  savePending(loadPending().concat([{fn,b64}]));
+  m.textContent='PDF downloaded. Saving a copy to Google Drive…';
+  if(await uploadPending()){
+    m.textContent='✅ PDF downloaded and saved to Google Drive.';$('rd').hidden=true;return true;
+  }
+  m.textContent='⚠️ PDF downloaded, but NOT saved to Google Drive. Check the internet and tap Retry.';
+  showRetry();return false;
+}
+// Clear the bill so the next one starts fresh. Saved parties are kept.
+function resetForm(){
+  $('inv').value='';$('vn').value='';
+  $('items').innerHTML='';addItem();calc();
+  $('add').hidden=false;
+  $('dt').value=today();
+  peekNo();
 }
 const MAX=8;
 const fmt=n=>n.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -588,6 +626,7 @@ $('add').onclick=addItem;
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 $('dt').value=today();
 addItem();calc();peekNo();$('dt').addEventListener('change',peekNo);
+if(loadPending().length){$('m').textContent='A bill from earlier is not saved to Google Drive yet.';showRetry()}
 $('lg').src=LOGO;$('vn').placeholder='TS 04 AB 1234';
 if(DRIVE_URL){$('inv').readOnly=true;$('inv').placeholder='Auto number on download'}else $('inv').placeholder='e.g. 101';
 
@@ -704,8 +743,7 @@ function pick(k){
   if(!n)return;
   const p=loadP().find(x=>x.n.toLowerCase()===n);
   if(!p)return;
-  $(f[1]).value=p.a;$(f[2]).value=p.s;$(f[3]).value=p.g;
-  [f[1],f[2],f[3]].forEach(id=>$(id).classList.remove('bad'));
+  [[f[1],p.a],[f[2],p.s],[f[3],p.g]].forEach(([id,v])=>{if(!$(id).value.trim()&&v){$(id).value=v;$(id).classList.remove('bad')}});
   const m=$('m');m.classList.remove('er');m.textContent='Filled saved details for '+p.n+'.';
 }
 $('bn').addEventListener('input',()=>pick('b'));
@@ -771,6 +809,7 @@ function showPv(){
 }
 $('dl').onclick=()=>{
   const m=$('m');m.textContent='';m.classList.remove('er');
+  peekNo();
   const errs=check();
   if(errs.length){
     m.classList.add('er');m.textContent='Please fix: '+errs.join(' · ');
@@ -796,10 +835,11 @@ $('pc').onclick=async()=>{
     const fn='Bill_of_Supply_'+inv+'.pdf';
     const dls=window.claude&&await window.claude.use('downloads');
     lastIssued=$('inv').value.trim();
-    if(!dls){d.save(fn);remember();m.textContent='PDF downloaded.';await toDrive(d,fn);return}
+    if(!dls){d.save(fn);remember();m.textContent='PDF downloaded.';if(await toDrive(d,fn))resetForm();return}
     const r=await dls.save({filename:fn,data:d.output('arraybuffer')});
     remember();
     m.textContent=r.status==='saved'?'PDF saved.':'Done.';
+    if(r.status==='saved')resetForm();
   }catch(e){m.textContent=e&&e.code==='declined'?'Download cancelled.':'Could not create the PDF: '+((e&&e.message)||'error')}
   finally{busy=false;pc.disabled=false;pc.textContent='✅ Confirm & Download';$('pv').hidden=true}
 };
